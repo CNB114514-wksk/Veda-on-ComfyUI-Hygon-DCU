@@ -60,7 +60,11 @@ class Resolution:
 
 def candidates(info: hardware.DeviceInfo) -> list[str]:
     """The backend to try on a device; empty if none applies."""
-    if info.kind == 'cuda' and info.family != 'rocm' and info.cc:
+    # Allow ROCm/Hygon DCU (gfx928) too: this Triton fork lowers int8
+    # tl.dot to the Hygon v_mmac_* matrix instruction, which works on
+    # gfx928 (verified). Upstream excluded ROCm only because it was never
+    # tuned there; the self-test below still guards correctness.
+    if info.kind == 'cuda' and info.cc:
         return ['triton-int8'] if info.cc >= _MIN_CC else []
     if info.kind == 'mps':
         return ['mlx']

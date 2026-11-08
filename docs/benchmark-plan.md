@@ -79,5 +79,8 @@ for the hardware and configuration actually measured.
 
 * A free GPU window (the card is currently used by a Wan A/B test).
 * The predictor file in `models/veda/` (downloadable, see README).
-* The H3 weights on the same machine, for the end-to-end arm.
+* The end-to-end weights: FL2VA int8 + 8-step Turbo LoRA + both VAEs +
+  the Qwen3-VL text encoder are already on the box. Upstream's table uses
+  T2VA; either fetch that checkpoint or state that the measurement is
+  FL2VA.
 * The runs themselves — the plan above is not a result.

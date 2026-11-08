@@ -1,0 +1,35 @@
+NOTICE
+======
+
+This repository is a derivative work of Veda-on-ComfyUI.
+
+  Upstream:  https://github.com/veda-sparse/Veda-on-ComfyUI
+  Version:   0.3.0 (veda-sparse-attention)
+  Commit:    60bfae6  ("release: 0.3.0")
+  Copyright: (c) 2026 veda-sparse
+
+Branch layout
+-------------
+* main      -- upstream 0.3.0 unmodified, except for this NOTICE file.
+* hygon-dcu -- main plus a two-change port that lets the Triton INT8
+               backend run on Hygon DCU (gfx928, ROCm). The changed
+               lines are marked in the source.
+
+The port is an independent modification. It is not affiliated with,
+approved by, or endorsed by the upstream authors.
+
+Licensing (unchanged from upstream)
+-----------------------------------
+* Code: MIT License, see LICENSE.
+* veda_comfy/kernels/sage/sparse_int8.py: the INT8 arithmetic is derived
+  from SageAttention 1.0.6 (BSD-3-Clause, Thu-ML). See NOTICE.md.
+* Veda predictor weights (minimax_h3_t2va_veda_8nfe_600step_preview_fp8
+  .safetensors): MiniMax H3 Community License, inherited from
+  MiniMax-H3 -- NOT MIT. The weights are downloaded separately at run
+  time and are not distributed in this repository.
+
+Verification status
+-------------------
+Verified working on Hygon DCU (gfx928 / ROCm, DTK Triton) on 2026-10-07;
+performance numbers are not yet measured (benchmark pending). See
+README.md and docs/benchmark-plan.md.

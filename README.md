@@ -39,7 +39,7 @@ MiniMax-H3 (T2VA, FL2VA and R2VA): one node, MODEL in and MODEL out.
 **Status: verified working (2026-10-07) · benchmark pending.**
 
 Upstream 0.3.0 ships kernels for NVIDIA SM80+ (Triton INT8) and Apple
-silicon (MLX) only. For ROCm, `docs/hardware.md` says there is no
+silicon (MLX) only. For ROCm, `docs/hardware.md:16` says there is no
 backend, so the node turns itself off and the model runs its own full
 attention. This fork — `CNB114514-wksk/Veda-on-ComfyUI-Hygon-DCU`,
 branch `hygon-dcu` — adds that missing backend for Hygon DCU (gfx928)
@@ -97,7 +97,7 @@ missing.
 ### Dependencies
 
 * **DTK Triton.** The verified build is
-  `triton 3.1.0+das.opt1.dtk2604.torch271` (DTK 26.04 toolchain), with
+  `triton 3.1.0+das.opt1.dtk2604.torch271` (the `dtk2604` DTK build), with
   `torch 2.7.1+hip6.3.26093`. A stock PyPI Triton is not known to lower
   int8 `tl.dot` to `v_mmac_*` on this target; use the DTK build.
 * ComfyUI >= 0.38.0 and MiniMax-H3 weights, as upstream.

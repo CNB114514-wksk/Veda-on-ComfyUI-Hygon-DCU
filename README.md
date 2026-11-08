@@ -34,6 +34,97 @@ MiniMax-H3 (T2VA, FL2VA and R2VA): one node, MODEL in and MODEL out.
   installing from the Comfy Registry pulls in Triton (NVIDIA, SM80 and
   newer) or MLX (Apple silicon).
 
+## Hygon DCU (ROCm / gfx928) port
+
+**Status: verified working (2026-10-07) · benchmark pending.**
+
+Upstream 0.3.0 ships kernels for NVIDIA SM80+ (Triton INT8) and Apple
+silicon (MLX) only. For ROCm, `docs/hardware.md` says there is no
+backend, so the node turns itself off and the model runs its own full
+attention. This fork — `CNB114514-wksk/Veda-on-ComfyUI-Hygon-DCU`,
+branch `hygon-dcu` — adds that missing backend for Hygon DCU (gfx928)
+under ROCm.
+
+### The two changes
+
+Everything else is upstream 0.3.0. The port is 21 added and 3 removed
+lines, exported verbatim as a patch from a machine where it was tested.
+
+1. **Backend whitelist** — `veda_comfy/backends/__init__.py`. Upstream
+   requires `info.kind == 'cuda' and info.family != 'rocm'`, which hides
+   `triton-int8` on HIP. Dropping the `family != 'rocm'` test lets the
+   INT8 path be selected. It is safe to expose because the backend still
+   runs its per-device self-test against a float reference before any
+   layer uses it; a wrong result falls back to full attention.
+
+2. **Pipeline stages** — `veda_comfy/kernels/sage/sparse_int8.py`.
+   Upstream's `num_stages = 3` was tuned on SM120. On gfx9 MMAC it is
+   much worse: the author's comment records **1294 ms vs 274 ms at 119k
+   slots (4.7x)**. A new `ROCM_STAGES = 2` plus `stages_for_device()`
+   returns 2 when `torch.version.hip` is set and keeps 3 elsewhere.
+
+The INT8 `tl.dot` reaches Hygon matrix cores because DTK's Triton lowers
+it to `v_mmac_*`; no kernel rewrite is involved.
+
+### Evidence
+
+Copied from the ComfyUI console of two complete H3 runs on 2026-10-07
+(14:42 and 15:27), on a Hygon DCU gfx928 under ROCm:
+
+```
+Veda: Veda ready | Triton INT8 (ROCM) | K500SM_AI
+Veda: Veda running | Triton INT8 (ROCM)
+Veda: Veda done | Triton INT8 (ROCM)
+Attention computed: 12.8% of full attention (87.2% skipped)
+```
+
+`K500SM_AI` is the device name the runtime reports. The last line means
+the sparse kernel computed about one eighth of the dense attention map.
+
+Before the port the same install reported, and silently used full
+attention:
+
+```
+Veda: Veda off: no sparse kernel works on K500SM_AI (ROCM); using full attention
+```
+
+These runs establish correctness and that the kernel is actually used.
+They are **not** a performance measurement: no timing was captured, so
+this repository claims no speed-up. See
+[docs/benchmark-plan.md](docs/benchmark-plan.md) for what is still
+missing.
+
+### Dependencies
+
+* **DTK Triton.** The verified build is
+  `triton 3.1.0+das.opt1.dtk2604.torch271` (DTK 26.04 toolchain), with
+  `torch 2.7.1+hip6.3.26093`. A stock PyPI Triton is not known to lower
+  int8 `tl.dot` to `v_mmac_*` on this target; use the DTK build.
+* ComfyUI >= 0.38.0 and MiniMax-H3 weights, as upstream.
+* The predictor file (see below). Nothing else.
+
+### Predictor weights
+
+`minimax_h3_t2va_veda_8nfe_600step_preview_fp8.safetensors` — 275 MB
+(275,415,648 bytes), sha256
+`2a8d8845c5342756a2781e8e69563940e4bb573c9a40ebb534915ff8fd76573a`,
+from `Veda-Sparse/Minimax-H3-T2VA-Veda-8NFE-600Step-Preview` on Hugging
+Face, revision `9a1fd3a4`. Place it in `ComfyUI/models/veda/`.
+
+The weights are under the **MiniMax H3 Community License**, inherited
+from MiniMax-H3 — **not MIT**. They are not redistributed in this
+repository.
+
+### 中文摘要
+
+本仓库补上 Veda 上游明确没有的一格：Hygon DCU（gfx928 / ROCm）。
+`main` 是上游 0.3.0 原样，仅加 `NOTICE`；`hygon-dcu` 在其上只改两处：
+放开 `family != 'rocm'` 的白名单、并在 HIP 下把 `num_stages` 从 3 降到 2
+（作者注释：119k slots 时 1294 ms vs 274 ms）。2026-10-07 两次完整运行
+的日志显示 `Triton INT8 (ROCM)` 生效、跳过 87.2% 的注意力，但**尚未测速**，
+因此不给出任何倍数。依赖 DTK 定制 Triton（`3.1.0+das.opt1.dtk2604`）；
+打分器权重是 MiniMax H3 Community License，非 MIT，需自行下载。
+
 ## Installation
 
 Requires ComfyUI >= 0.38.0. In ComfyUI Manager, search "Veda". Or:
@@ -125,7 +216,9 @@ outside the training data, so compare them against full attention.
 ## Performance
 
 T2VA at 1344x768, 124 frames (5.2 s), 8-step Turbo LoRA, 90% sparsity,
-on an RTX 5070 12 GB under Windows 11.
+on an RTX 5070 12 GB under Windows 11. These are upstream's NVIDIA
+measurements, kept for reference. No Hygon DCU benchmark has been run
+yet — see [docs/benchmark-plan.md](docs/benchmark-plan.md).
 
 | Attention | Per step | 8 steps | Attention per step |
 |---|---|---|---|
@@ -142,8 +235,10 @@ movement, not attention.
 ## Hardware
 
 One Triton kernel covers every NVIDIA GPU from SM80 on, Windows and Linux
-alike. Older cards, ROCm and CPU have no kernel: the node says so and the
-model runs its own attention.
+alike. Older cards and CPU have no kernel, and upstream also excludes
+ROCm: the node says so and the model runs its own attention. This fork's
+`hygon-dcu` branch adds ROCm support for Hygon DCU; see
+[Hygon DCU (ROCm / gfx928) port](#hygon-dcu-rocm--gfx928-port).
 
 | Hardware | Status |
 |---|---|
@@ -153,6 +248,7 @@ model runs its own attention.
 | RTX 50, RTX PRO 6000 Blackwell (sm120) | **verified: RTX 5070, Windows 11** |
 | DGX Spark / GB10 (sm121) | code path ready, not yet verified on this hardware |
 | Apple silicon (M series) | verified: M3 Pro, macOS 15 |
+| Hygon DCU K500 (gfx928, ROCm) | triton-int8 | — | **verified: 2026-10-07** (this fork) |
 
 Per-architecture notes and the full measurement log are in
 [docs/hardware.md](https://github.com/veda-sparse/Veda-on-ComfyUI/blob/main/docs/hardware.md).

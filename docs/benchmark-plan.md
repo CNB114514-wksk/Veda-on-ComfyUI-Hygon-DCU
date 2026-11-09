@@ -1,9 +1,11 @@
 # Benchmark plan — Hygon DCU (gfx928 / ROCm)
 
-Status: **benchmark pending**. The port is verified as functionally working
-(see README, logs from 2026-10-07), but no timing has been captured on this
-hardware. Nothing in this repository should be read as a speed-up claim
-until the runs below exist.
+Status: **done for the H3 end-to-end row (measurement 3), 2026-11-09 —
+results in [benchmark-h3-04mp.md](benchmark-h3-04mp.md).** Rows 1, 2 and 4
+(single layer, sparsity sweep, phase split) are still open. The port itself
+was verified as functionally working on 2026-10-07; the 2026-11-09 run added
+the timing. The plan below is kept as it was written, so that what was
+measured can be compared against what was intended.
 
 ## What to measure
 
@@ -62,7 +64,8 @@ being judged here.
 
 ## Deliverables
 
-Add `docs/benchmark-results.md` containing:
+Add `docs/benchmark-results.md` containing (for the end-to-end row this was
+delivered as [benchmark-h3-04mp.md](benchmark-h3-04mp.md)):
 
 * a table per measurement, with median and range;
 * the exact commands and the fixed-condition block;
@@ -75,12 +78,18 @@ Add `docs/benchmark-results.md` containing:
 Only then replace "benchmark pending" in the README with numbers, and only
 for the hardware and configuration actually measured.
 
-## What is missing right now
+## What was missing when this plan was written
 
-* A free GPU window (the card is currently used by a Wan A/B test).
+All four items were resolved by 2026-11-09 and the end-to-end run was made.
+Note that the run used the FL2VA int8 checkpoint at 864x480 / 20 steps, not
+the 1344x768 / 8-step Turbo configuration named under "Fixed conditions"
+above — the deviation is recorded in
+[benchmark-h3-04mp.md](benchmark-h3-04mp.md) §1.
+
+* A free GPU window (the card was then used by a Wan A/B test).
 * The predictor file in `models/veda/` (downloadable, see README).
 * The end-to-end weights: FL2VA int8 + 8-step Turbo LoRA + both VAEs +
   the Qwen3-VL text encoder are already on the box. Upstream's table uses
   T2VA; either fetch that checkpoint or state that the measurement is
   FL2VA.
-* The runs themselves — the plan above is not a result.
+* The runs themselves — done for measurement 3; 1, 2 and 4 still open.

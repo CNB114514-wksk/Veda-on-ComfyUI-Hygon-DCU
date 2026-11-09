@@ -36,7 +36,13 @@ MiniMax-H3 (T2VA, FL2VA and R2VA): one node, MODEL in and MODEL out.
 
 ## Hygon DCU (ROCm / gfx928) port
 
-**Status: verified working (2026-10-07) · benchmark pending.**
+**Status: verified working (2026-10-07) · benchmarked (2026-11-09).**
+
+Measured on 864×480, 124 frames, 20 steps: Veda skips **77.3%** of the
+attention map and is **1.67%** faster end to end (224.02 → 220.28 s), which
+is small — attention is not the bottleneck at this size. Setup, numbers and
+caveats: [docs/benchmark-h3-04mp.md](docs/benchmark-h3-04mp.md). How the
+port works: [docs/veda_sparse_attention_dcu.md](docs/veda_sparse_attention_dcu.md).
 
 Upstream 0.3.0 ships kernels for NVIDIA SM80+ (Triton INT8) and Apple
 silicon (MLX) only. For ROCm, `docs/hardware.md:16` says there is no
@@ -88,11 +94,10 @@ attention:
 Veda: Veda off: no sparse kernel works on K500SM_AI (ROCM); using full attention
 ```
 
-These runs establish correctness and that the kernel is actually used.
-They are **not** a performance measurement: no timing was captured, so
-this repository claims no speed-up. See
-[docs/benchmark-plan.md](docs/benchmark-plan.md) for what is still
-missing.
+These runs establish correctness and that the kernel is actually used; they
+captured no timing and are **not** a performance measurement. The timing came
+later, on 2026-11-09 — see
+[docs/benchmark-h3-04mp.md](docs/benchmark-h3-04mp.md).
 
 ### Dependencies
 
@@ -121,9 +126,12 @@ repository.
 `main` 是上游 0.3.0 原样，仅加 `NOTICE`；`hygon-dcu` 在其上只改两处：
 放开 `family != 'rocm'` 的白名单、并在 HIP 下把 `num_stages` 从 3 降到 2
 （作者注释：119k slots 时 1294 ms vs 274 ms）。2026-10-07 两次完整运行
-的日志显示 `Triton INT8 (ROCM)` 生效、跳过 87.2% 的注意力，但**尚未测速**，
-因此不给出任何倍数。依赖 DTK 定制 Triton（`3.1.0+das.opt1.dtk2604`）；
-打分器权重是 MiniMax H3 Community License，非 MIT，需自行下载。
+的日志显示 `Triton INT8 (ROCM)` 生效、跳过 87.2% 的注意力。2026-11-09 在
+0.4 MP（864×480 / 124 帧 / 20 步）上做了 A/B 对照：跳过 77.3% 的注意力，
+端到端只快 1.67%，说明这一档瓶颈不在注意力；完整数字与限制见
+[docs/benchmark-h3-04mp.md](docs/benchmark-h3-04mp.md)。依赖 DTK 定制
+Triton（`3.1.0+das.opt1.dtk2604`）；打分器权重是 MiniMax H3 Community
+License，非 MIT，需自行下载。
 
 ## Installation
 
@@ -217,8 +225,12 @@ outside the training data, so compare them against full attention.
 
 T2VA at 1344x768, 124 frames (5.2 s), 8-step Turbo LoRA, 90% sparsity,
 on an RTX 5070 12 GB under Windows 11. These are upstream's NVIDIA
-measurements, kept for reference. No Hygon DCU benchmark has been run
-yet — see [docs/benchmark-plan.md](docs/benchmark-plan.md).
+measurements, kept for reference.
+
+The Hygon DCU measurement is a different regime — 864x480, 124 frames,
+20 steps, no Turbo — and it gives 1.67% end to end, not 2.9x: see
+[docs/benchmark-h3-04mp.md](docs/benchmark-h3-04mp.md). Do not carry the
+NVIDIA ratios over to DCU.
 
 | Attention | Per step | 8 steps | Attention per step |
 |---|---|---|---|
